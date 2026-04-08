@@ -67,19 +67,16 @@ if not all_words:
     print(vtt_file)
     sys.exit(0)
 
-# ✅ Phrase-based grouping settings
-PAUSE_THRESHOLD    = 0.5   # gap >= this (seconds) = end of phrase → blank screen
-MAX_WORDS_PER_CUE  = 8     # safety cap so one cue never runs too long
-MIN_BLANK_DURATION = 0.1   # only write a blank cue if pause is at least this long
+# ✅ Settings
+PAUSE_THRESHOLD    = 0.5   # gap >= this (seconds) = break/pause detected
+MAX_WORDS_PER_CUE  = 8     # max words per line
 
 def build_phrases(words, pause_threshold, max_words):
     """
-    Groups words into phrases by detecting pauses between them.
-    A gap >= pause_threshold between two words starts a new phrase.
-    Returns a list of word-groups: each group is a list of word dicts.
+    Groups words into phrases by detecting pauses.
     """
-    phrases  = []
-    current  = [words[0]]
+    phrases = []
+    current = [words[0]]
 
     for w in words[1:]:
         gap = w["start"] - current[-1]["end"]
@@ -103,23 +100,16 @@ with open(vtt_file, "w", encoding="utf-8") as f:
 
     for i, phrase in enumerate(phrases):
         start = phrase[0]["start"]
-        end   = phrase[-1]["end"]
-        text  = " ".join(w["word"] for w in phrase)
+        end = phrase[-1]["end"]
+        text = " ".join(w["word"] for w in phrase)
 
         if i + 1 < len(phrases):
             next_start = phrases[i + 1][0]["start"]
-            gap        = next_start - end
-
-            # ✅ Show phrase — displayed until the next phrase begins
+            # ✅ KEEP ORIGINAL VIDEO TIMING (with pauses)
             f.write(f"{format_time(start)} --> {format_time(next_start)}\n")
             f.write(f"{text}\n\n")
-
-            # ✅ Blank cue — screen goes empty during the pause
-            if gap >= MIN_BLANK_DURATION:
-                f.write(f"{format_time(end)} --> {format_time(next_start)}\n")
-                f.write(f"\n\n")
         else:
-            # ✅ Last phrase — ends naturally at the last word
+            # Last phrase
             f.write(f"{format_time(start)} --> {format_time(end)}\n")
             f.write(f"{text}\n\n")
 
