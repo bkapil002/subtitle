@@ -1,23 +1,39 @@
 const express = require("express");
-const multer  = require("multer");
-const cors    = require("cors");
-const fs      = require("fs");
-const path    = require("path");
+const multer = require("multer");
+const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
 const { execFile } = require("child_process");
 
 const app = express();
 app.use(cors());
 
-// ✅ Ensure output folder exists
 const OUTPUT_DIR = path.join(__dirname, "output");
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR);
 }
 
-// ✅ Serve output files
+const deleteOldSubtitleFiles = (currentFilePath) => {
+  const currentResolvedPath = path.resolve(currentFilePath);
+
+  for (const fileName of fs.readdirSync(OUTPUT_DIR)) {
+    if (path.extname(fileName).toLowerCase() !== ".vtt") {
+      continue;
+    }
+
+    const filePath = path.resolve(OUTPUT_DIR, fileName);
+    if (filePath !== currentResolvedPath) {
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          console.error("Failed to delete old subtitle:", err.message);
+        }
+      });
+    }
+  }
+};
+
 app.use("/output", express.static(OUTPUT_DIR));
 
-// ✅ Multer config
 const upload = multer({
   dest: "uploads/",
   fileFilter: (req, file, cb) => {
@@ -33,25 +49,21 @@ const upload = multer({
   },
 });
 
-// 🎥 Upload API
 app.post("/upload", upload.single("video"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No video file uploaded" });
   }
 
   const videoPath = req.file.path;
-  console.log("🎥 Uploaded:", videoPath);
+  console.log("Uploaded:", videoPath);
 
-  // ✅ Use python3 fallback
   const pythonCmd = process.platform === "win32" ? "python" : "python3";
 
   execFile(pythonCmd, ["whisper_script.py", videoPath], (error, stdout, stderr) => {
-
-    // 🧹 Always delete uploaded file
     fs.unlink(videoPath, () => {});
 
     if (error) {
-      console.error("❌ Python error:", stderr || error.message);
+      console.error("Python error:", stderr || error.message);
       return res.status(500).json({ error: "Subtitle generation failed" });
     }
 
@@ -63,12 +75,13 @@ app.post("/upload", upload.single("video"), (req, res) => {
 
     const fullPath = path.join(__dirname, vttPath);
 
-    // ✅ Check file exists
     if (!fs.existsSync(fullPath)) {
       return res.status(500).json({ error: "Subtitle file not found" });
     }
 
-    console.log("📄 VTT:", vttPath);
+    deleteOldSubtitleFiles(fullPath);
+
+    console.log("VTT:", vttPath);
 
     res.json({
       message: "Subtitle generated",
@@ -77,14 +90,13 @@ app.post("/upload", upload.single("video"), (req, res) => {
   });
 });
 
-// ✅ Multer error handling
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError || err.message === "Only video files are allowed") {
     return res.status(400).json({ error: err.message });
   }
-  console.error("❌ Server error:", err);
+  console.error("Server error:", err);
   res.status(500).json({ error: "Server error" });
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
