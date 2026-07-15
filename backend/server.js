@@ -32,6 +32,18 @@ const deleteOldSubtitleFiles = (currentFilePath) => {
   }
 };
 
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    message: "Server is running",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    memory: process.memoryUsage(),
+    node: process.version,
+    platform: process.platform,
+  });
+});
+
 app.use("/output", express.static(OUTPUT_DIR));
 
 const upload = multer({
