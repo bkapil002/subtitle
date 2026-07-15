@@ -69,37 +69,43 @@ app.post("/upload", upload.single("video"), (req, res) => {
   const videoPath = req.file.path;
   console.log("Uploaded:", videoPath);
 
-  const pythonCmd = process.platform === "win32" ? "python" : "python3";
+  const pythonCmd =
+    process.platform === "win32"
+      ? "python"
+      : path.join(__dirname, "venv", "bin", "python");
 
-  execFile(pythonCmd, ["whisper_script.py", videoPath], (error, stdout, stderr) => {
-    fs.unlink(videoPath, () => {});
+  execFile(
+    pythonCmd,
+    [path.join(__dirname, "whisper_script.py"), videoPath],
+    (error, stdout, stderr) => {
+      fs.unlink(videoPath, () => { });
 
-    if (error) {
-      console.error("Python error:", stderr || error.message);
-      return res.status(500).json({ error: "Subtitle generation failed" });
-    }
+      if (error) {
+        console.error("Python error:", stderr || error.message);
+        return res.status(500).json({ error: "Subtitle generation failed" });
+      }
 
-    const vttPath = stdout.trim();
+      const vttPath = stdout.trim();
 
-    if (!vttPath) {
-      return res.status(500).json({ error: "No output file returned" });
-    }
+      if (!vttPath) {
+        return res.status(500).json({ error: "No output file returned" });
+      }
 
-    const fullPath = path.join(__dirname, vttPath);
+      const fullPath = path.join(__dirname, vttPath);
 
-    if (!fs.existsSync(fullPath)) {
-      return res.status(500).json({ error: "Subtitle file not found" });
-    }
+      if (!fs.existsSync(fullPath)) {
+        return res.status(500).json({ error: "Subtitle file not found" });
+      }
 
-    deleteOldSubtitleFiles(fullPath);
+      deleteOldSubtitleFiles(fullPath);
 
-    console.log("VTT:", vttPath);
+      console.log("VTT:", vttPath);
 
-    res.json({
-      message: "Subtitle generated",
-      file: "/" + vttPath.replace(/\\/g, "/"),
+      res.json({
+        message: "Subtitle generated",
+        file: "/" + vttPath.replace(/\\/g, "/"),
+      });
     });
-  });
 });
 
 app.use((err, req, res, next) => {
