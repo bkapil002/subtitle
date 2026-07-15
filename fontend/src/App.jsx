@@ -79,7 +79,7 @@ export default function App() {
     formData.append("video", video);
 
     try {
-      const res = await axios.post("http://localhost:5000/upload", formData, {
+      const res = await axios.post("https://subtitle-backend.samzara.in/upload", formData, {
         onUploadProgress: (e) => {
           const pct = Math.round((e.loaded / e.total) * 50);
           setProgress(pct);
@@ -94,7 +94,7 @@ export default function App() {
         setProgress(Math.round(fake));
       }, 600);
 
-      const fullUrl = `http://localhost:5000${res.data.file}`;
+      const fullUrl = `https://subtitle-backend.samzara.in/${res.data.file}`;
       clearInterval(timer);
       setProgress(100);
       setVttUrl(fullUrl);
